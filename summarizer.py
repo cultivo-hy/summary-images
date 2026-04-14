@@ -97,6 +97,10 @@ def fetch_metadata(video_id: str) -> dict:
             "description": (data.get("description") or "")[:500],
         }
     except Exception as e:
+        import traceback
+        print("=== 메타데이터 오류 전체 ===")
+        traceback.print_exc()
+        print("===========================")
         log(f"메타데이터 조회 실패 ({e}) → 기본값 사용")
         return {"title": video_id, "channel": "", "duration": 0,
                 "upload_date": "", "view_count": 0, "description": ""}
