@@ -21,6 +21,8 @@ jobs:
   summarize:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout repo
@@ -56,7 +58,7 @@ jobs:
         run: |
           python summarizer.py "${{ inputs.youtube_url }}" \
             --model "${{ inputs.model }}" \
-            --quality "best[height<=480]/worst" \
+            --quality "best[height<=720]/worst" \
             ${TRANSCRIPT_ARG:-} \
             --output summary_output.md
 

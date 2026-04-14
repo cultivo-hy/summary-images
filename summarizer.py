@@ -28,7 +28,7 @@ class Config:
     output_path: Optional[str] = None
     languages: list = field(default_factory=lambda: ["ko", "en", "ja"])
     # 프레임 추출 화질 (480p: 슬라이드 충분, 720p: 더 선명)
-    video_quality: str = "best[height<=480]/worst"
+    video_quality: str = "best[height<=720]/worst"
     # ffmpeg 이미지 품질 (2=고품질, 5=저용량)
     jpeg_quality: int = 3
     # 프레임 추출 여부 (False면 텍스트만)
@@ -528,7 +528,7 @@ def summarize_youtube(url: str, cfg: Config = None, transcript_path: str = None)
     frame_map = {}
     if cfg.extract_frames:
         print(f"\n[5/{total_steps}] 프레임 추출 & 이미지 삽입")
-        timestamps = parse_scene_timestamps(summary, max_seconds=metadata.get("duration", 0))
+        timestamps = parse_scene_timestamps(summary, max_seconds=metadata.get("duration", 0) * 1.1)
         if timestamps:
             cache_dir = os.path.join(
                 os.getcwd(), ".cache", "yt_summarizer", video_id
@@ -578,7 +578,7 @@ if __name__ == "__main__":
     parser.add_argument("--transcript", help="SRT 자막 파일 경로 (없으면 자동 시도)")
     parser.add_argument("--model", default="gemini-2.5-flash",
                         help="Gemini 모델 (기본: gemini-2.5-flash)")
-    parser.add_argument("--quality", default="best[height<=480]/worst",
+    parser.add_argument("--quality", default="best[height<=720]/worst",
                         help="영상 화질 (기본: 480p, 예: best[height<=720]/worst)")
     parser.add_argument("--no-frames", action="store_true",
                         help="프레임 추출 없이 텍스트만 생성")
