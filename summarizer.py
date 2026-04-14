@@ -82,7 +82,11 @@ def fetch_metadata(video_id: str) -> dict:
             capture_output=True, text=True, timeout=30
         )
         if result.returncode != 0:
-            raise RuntimeError(result.stderr)  # 전체 출력
+            # 디버그: stderr 전체 출력
+            print("=== yt-dlp stderr ===")
+            print(result.stderr)
+            print("====================")
+            raise RuntimeError(result.stderr[:200])
         data = json.loads(result.stdout)
         return {
             "title": data.get("title", video_id),
