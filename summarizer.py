@@ -87,7 +87,7 @@ def fetch_metadata(video_id: str) -> dict:
     log("영상 메타데이터 조회 중...")
     try:
         cookie_file = get_cookie_file()
-        cmd = ["yt-dlp", "--dump-json", "--no-playlist"]
+        cmd = ["yt-dlp", "--dump-json", "--no-playlist", "--remote-components", "ejs:github"]
         if cookie_file:
             cmd += ["--cookies", cookie_file]
         cmd.append(f"https://www.youtube.com/watch?v={video_id}")
@@ -265,6 +265,7 @@ def download_video(video_id: str, out_path: str, quality: str):
         "yt-dlp",
         "-f", quality,
         "--no-playlist",
+        "--remote-components", "ejs:github",
         "-o", out_path,
     ]
     if cookie_file:
