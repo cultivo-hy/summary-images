@@ -177,7 +177,6 @@ def upload_to_notion(md_path: str):
         "parent": {"page_id": NOTION_PAGE_ID},
         "properties": {"title": [{"type": "text", "text": {"content": title}}]},
         "children": blocks[:100],
-        "is_full_width": True,
     }
     resp = requests.post(
         "https://api.notion.com/v1/pages",
@@ -189,6 +188,14 @@ def upload_to_notion(md_path: str):
     page_id = resp.json()["id"]
     print(f"✅ Notion 페이지 생성: {title}")
     print(f"   URL: https://www.notion.so/{page_id.replace('-', '')}")
+
+    # 전체 너비 설정
+    requests.patch(
+        f"https://api.notion.com/v1/pages/{page_id}",
+        headers=HEADERS,
+        json={"properties": {}, "is_full_width": True},
+        timeout=10,
+    )
 
     # 100 블록 초과 시 추가 append
     for chunk_start in range(100, len(blocks), 100):
