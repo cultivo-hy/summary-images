@@ -76,13 +76,13 @@ def fetch_metadata(video_id: str) -> dict:
     log("영상 메타데이터 조회 중...")
     try:
         result = subprocess.run(
-            ["yt-dlp", "--dump-json", "--no-playlist",
+            ["yt-dlp", "--dump-json", "--no-playlist", "-v",
              "--extractor-args", "youtubepot-bgutilhttp:base_url=http://127.0.0.1:4416",
              f"https://www.youtube.com/watch?v={video_id}"],
             capture_output=True, text=True, timeout=30
         )
         if result.returncode != 0:
-            raise RuntimeError(result.stderr[:200])
+            raise RuntimeError(result.stderr)  # 전체 출력
         data = json.loads(result.stdout)
         return {
             "title": data.get("title", video_id),
