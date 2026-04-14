@@ -1,0 +1,5 @@
+google-genai
+yt-dlp
+yt-dlp-ejs
+youtube-transcript-api
+requests
