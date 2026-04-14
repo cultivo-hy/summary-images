@@ -77,6 +77,7 @@ def fetch_metadata(video_id: str) -> dict:
     try:
         result = subprocess.run(
             ["yt-dlp", "--dump-json", "--no-playlist",
+             "--extractor-args", "youtubepot-bgutilhttp:base_url=http://127.0.0.1:4416",
              f"https://www.youtube.com/watch?v={video_id}"],
             capture_output=True, text=True, timeout=30
         )
@@ -254,6 +255,7 @@ def download_video(video_id: str, out_path: str, quality: str):
             "--remote-components", "ejs:github",
             "--no-check-certificates",
             "--no-playlist",
+            "--extractor-args", "youtubepot-bgutilhttp:base_url=http://127.0.0.1:4416",
             "-o", out_path,
             f"https://www.youtube.com/watch?v={video_id}",
         ],

@@ -1,0 +1,98 @@
+name: YouTube Summarizer
+
+on:
+  workflow_dispatch:
+    inputs:
+      youtube_url:
+        description: "YouTube URL"
+        required: true
+        type: string
+      transcript_path:
+        description: "SRT 파일 경로 (repo 내, 예: transcripts/video.srt)"
+        required: false
+        type: string
+      model:
+        description: "Gemini 모델"
+        required: false
+        default: "gemini-2.5-flash-lite"
+        type: string
+
+jobs:
+  summarize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+          # deno 설치 (yt-dlp-ejs가 필요)
+          curl -fsSL https://deno.land/install.sh | sh
+          echo "$HOME/.deno/bin" >> $GITHUB_PATH
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Setup bgutil PO Token server
+        run: |
+          # bgutil HTTP 서버 설치 (YouTube 봇 차단 우회)
+          BGUTIL_VERSION=$(pip show bgutil-ytdlp-pot-provider | grep Version | cut -d' ' -f2)
+          echo "bgutil version: $BGUTIL_VERSION"
+          git clone --single-branch --branch $BGUTIL_VERSION \
+            https://github.com/Brainicism/bgutil-ytdlp-pot-provider.git \
+            ~/bgutil-ytdlp-pot-provider
+          cd ~/bgutil-ytdlp-pot-provider/server
+          deno install --allow-scripts=npm:canvas --frozen
+          # 백그라운드에서 HTTP 서버 실행 (port 4416)
+          deno run --allow-env --allow-net --allow-ffi=. --allow-read=. \
+            --allow-sys src/main.ts &
+          sleep 5
+          echo "bgutil HTTP 서버 시작 완료 (port 4416)"
+
+      - name: Set transcript arg
+        if: ${{ inputs.transcript_path != '' }}
+        run: |
+          echo "TRANSCRIPT_ARG=--transcript ${{ inputs.transcript_path }}" >> $GITHUB_ENV
+
+      - name: Run summarizer
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPO: ${{ github.repository }}
+        run: |
+          python summarizer.py "${{ inputs.youtube_url }}" \
+            --model "${{ inputs.model }}" \
+            --quality "best[height<=480]/worst" \
+            ${TRANSCRIPT_ARG:-} \
+            --output summary_output.md
+
+      - name: Upload to Notion
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_PAGE_ID: ${{ secrets.NOTION_PAGE_ID }}
+        run: python upload_to_notion.py summary_output.md
+
+      - name: Cleanup transcript
+        if: ${{ inputs.transcript_path != '' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # 사용 완료된 SRT 파일 repo에서 삭제
+          SHA=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/contents/${{ inputs.transcript_path }}" \
+            | python3 -c "import sys,json; print(json.load(sys.stdin)['sha'])")
+          curl -s -X DELETE \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Content-Type: application/json" \
+            "https://api.github.com/repos/${{ github.repository }}/contents/${{ inputs.transcript_path }}" \
+            -d "{\"message\": \"cleanup transcript\", \"sha\": \"$SHA\"}"
