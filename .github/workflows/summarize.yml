@@ -30,9 +30,6 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y ffmpeg
-          # deno 설치 (yt-dlp-ejs가 필요)
-          curl -fsSL https://deno.land/install.sh | sh
-          echo "$HOME/.deno/bin" >> $GITHUB_PATH
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -42,18 +39,6 @@ jobs:
 
       - name: Install Python dependencies
         run: pip install -r requirements.txt
-
-      - name: Setup bgutil PO Token server
-        run: |
-          # bgutil 서버 설치 (YouTube 봇 차단 우회)
-          BGUTIL_VERSION=$(pip show bgutil-ytdlp-pot-provider | grep Version | cut -d' ' -f2)
-          echo "bgutil version: $BGUTIL_VERSION"
-          git clone --single-branch --branch $BGUTIL_VERSION \
-            https://github.com/Brainicism/bgutil-ytdlp-pot-provider.git \
-            ~/bgutil-ytdlp-pot-provider
-          cd ~/bgutil-ytdlp-pot-provider/server
-          deno install --allow-scripts=npm:canvas --frozen
-          echo "bgutil 설치 완료 (서버는 Run summarizer 단계에서 시작)"
 
       - name: Set transcript arg
         if: ${{ inputs.transcript_path != '' }}
@@ -65,15 +50,8 @@ jobs:
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPO: ${{ github.repository }}
+          YOUTUBE_COOKIES: ${{ secrets.YOUTUBE_COOKIES }}
         run: |
-          # bgutil HTTP 서버 백그라운드 실행
-          cd ~/bgutil-ytdlp-pot-provider/server
-          deno run --allow-env --allow-net --allow-ffi=. --allow-read=. \
-            --allow-sys src/main.ts &
-          sleep 5
-          echo "bgutil 서버 재시작 완료"
-          cd $GITHUB_WORKSPACE
-
           python summarizer.py "${{ inputs.youtube_url }}" \
             --model "${{ inputs.model }}" \
             --quality "best[height<=480]/worst" \

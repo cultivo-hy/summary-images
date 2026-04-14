@@ -72,21 +72,29 @@ def log(msg: str):
 
 # ── 메타데이터 ────────────────────────────────────────────────────────────────
 
+def get_cookie_file() -> Optional[str]:
+    """YOUTUBE_COOKIES 환경변수에서 쿠키 파일 생성"""
+    cookies = os.environ.get("YOUTUBE_COOKIES", "")
+    if not cookies:
+        return None
+    cookie_path = "/tmp/youtube_cookies.txt"
+    with open(cookie_path, "w") as f:
+        f.write(cookies)
+    return cookie_path
+
+
 def fetch_metadata(video_id: str) -> dict:
     log("영상 메타데이터 조회 중...")
     try:
-        result = subprocess.run(
-            ["yt-dlp", "--dump-json", "--no-playlist", "-v",
-             "--extractor-args", "youtubepot-bgutilhttp:base_url=http://127.0.0.1:4416",
-             f"https://www.youtube.com/watch?v={video_id}"],
-            capture_output=True, text=True, timeout=30
-        )
+        cookie_file = get_cookie_file()
+        cmd = ["yt-dlp", "--dump-json", "--no-playlist"]
+        if cookie_file:
+            cmd += ["--cookies", cookie_file]
+        cmd.append(f"https://www.youtube.com/watch?v={video_id}")
+
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
         if result.returncode != 0:
-            # 디버그: stderr 전체 출력
-            print("=== yt-dlp stderr ===")
-            print(result.stderr)
-            print("====================")
-            raise RuntimeError(result.stderr[:200])
+            raise RuntimeError(result.stderr[:300])
         data = json.loads(result.stdout)
         return {
             "title": data.get("title", video_id),
@@ -97,11 +105,7 @@ def fetch_metadata(video_id: str) -> dict:
             "description": (data.get("description") or "")[:500],
         }
     except Exception as e:
-        import traceback
-        print("=== 메타데이터 오류 전체 ===")
-        traceback.print_exc()
-        print("===========================")
-        log(f"메타데이터 조회 실패 ({e}) → 기본값 사용")
+        log(f"메타데이터 조회 실패 ({str(e)[:100]}) → 기본값 사용")
         return {"title": video_id, "channel": "", "duration": 0,
                 "upload_date": "", "view_count": 0, "description": ""}
 
@@ -256,19 +260,18 @@ def parse_scene_timestamps(summary: str, max_seconds: float = 0) -> list[float]:
 
 def download_video(video_id: str, out_path: str, quality: str):
     log(f"영상 다운로드 중 (화질: {quality})...")
-    result = subprocess.run(
-        [
-            "yt-dlp",
-            "-f", quality,
-            "--remote-components", "ejs:github",
-            "--no-check-certificates",
-            "--no-playlist",
-            "--extractor-args", "youtubepot-bgutilhttp:base_url=http://127.0.0.1:4416",
-            "-o", out_path,
-            f"https://www.youtube.com/watch?v={video_id}",
-        ],
-        capture_output=True, text=True, timeout=300
-    )
+    cookie_file = get_cookie_file()
+    cmd = [
+        "yt-dlp",
+        "-f", quality,
+        "--no-playlist",
+        "-o", out_path,
+    ]
+    if cookie_file:
+        cmd += ["--cookies", cookie_file]
+    cmd.append(f"https://www.youtube.com/watch?v={video_id}")
+
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
     if result.returncode != 0:
         raise RuntimeError(f"영상 다운로드 실패:\n{result.stderr[:300]}")
     log("다운로드 완료")
