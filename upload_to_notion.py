@@ -177,6 +177,7 @@ def upload_to_notion(md_path: str):
         "parent": {"page_id": NOTION_PAGE_ID},
         "properties": {"title": [{"type": "text", "text": {"content": title}}]},
         "children": blocks[:100],
+        "is_full_width": True,
     }
     resp = requests.post(
         "https://api.notion.com/v1/pages",
