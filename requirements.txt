@@ -1,4 +1,0 @@
-google-genai
-yt-dlp
-youtube-transcript-api
-requests
